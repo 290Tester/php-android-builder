@@ -1,4 +1,4 @@
-name: Build PHP for Android
+name: Build PHP for Android (aarch64)
 
 on:
   push:
@@ -8,31 +8,73 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build deps
+      - name: Install cross-compile dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y make autoconf automake libtool m4 wget bison git ca-certificates
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            libc6-dev-arm64-cross \
+            make \
+            autoconf \
+            automake \
+            libtool \
+            m4 \
+            bison \
+            wget \
+            git \
+            ca-certificates
 
-      - name: Install missing aarch64 libc & patch script
+      - name: Download PHP source
         run: |
-          sudo apt-get install -y libc6-dev-arm64-cross gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          git clone --depth=1 https://github.com/BXXD101/PHP-for-Android-compiler.git
-          cd PHP-for-Android-compiler
-          sed -i 's|./configure -O3|CFLAGS="-O3" ./configure|g' compileandroid.sh
-          chmod +x compileandroid.sh
+          wget https://www.php.net/distributions/php-8.3.9.tar.gz
+          tar -xzf php-8.3.9.tar.gz
+          mv php-8.3.9 php-src
 
-      - name: Cross-compile PHP (aarch64-linux)
+      - name: Configure PHP for static aarch64 build
         run: |
-          cd PHP-for-Android-compiler
-          chmod +rwx *
-          ./compileandroid.sh aarch64-linux
+          cd php-src
+          export CC=aarch64-linux-gnu-gcc
+          export CXX=aarch64-linux-gnu-g++
+          export AR=aarch64-linux-gnu-ar
+          export RANLIB=aarch64-linux-gnu-ranlib
+          export STRIP=aarch64-linux-gnu-strip
+          export CFLAGS="-static -Os"
+          export LDFLAGS="-static"
+          ./configure \
+            --host=aarch64-linux-gnu \
+            --target=aarch64-linux-gnu \
+            --prefix=/data/local/tmp/Android-tools/usr/ \
+            --disable-all \
+            --enable-cli \
+            --without-pear \
+            --disable-cgi \
+            --disable-phpdbg \
+            --disable-fpm \
+            --disable-shared \
+            --enable-static
 
-      - name: Upload binary
+      - name: Build PHP
+        run: |
+          cd php-src
+          make -j$(nproc)
+
+      - name: Strip binary
+        run: |
+          aarch64-linux-gnu-strip php-src/sapi/cli/php
+
+      - name: Prepare install structure
+        run: |
+          mkdir -p Android-tools/usr/bin
+          cp php-src/sapi/cli/php Android-tools/usr/bin/
+
+      - name: Upload PHP binary
         uses: actions/upload-artifact@v4
         with:
-          name: php-aarch64-linux
-          path: PHP-for-Android-compiler/php
+          name: php-aarch64-android
+          path: Android-tools/usr/bin/php
