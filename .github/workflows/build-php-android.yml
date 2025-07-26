@@ -19,12 +19,6 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
             build-essential autoconf automake libtool bison pkg-config
-
-      - name: Set OpenSSL env
-        run: |
-          echo "OPENSSL_DIR=${GITHUB_WORKSPACE}/openssl" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=${GITHUB_WORKSPACE}/openssl/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
-
       - name: Cross-compile curl
         run: |
           wget https://curl.se/download/curl-8.8.0.tar.gz
@@ -36,7 +30,7 @@ jobs:
             --prefix=/tmp/curl-aarch64 \
             --disable-shared \
             --enable-static \
-            --with-ssl=${OPENSSL_DIR} \
+            --with-ssl=${GITHUB_WORKSPACE}/openssl \
             --disable-ldap \
             --disable-rtsp \
             --disable-dict \
@@ -47,6 +41,7 @@ jobs:
             --disable-pop3 \
             --disable-smtp \
             --disable-telnet \
+            --with-openssl ${GITHUB_WORKSPACE}/openssl \
             --disable-tftp
           make -j$(nproc)
           make install
