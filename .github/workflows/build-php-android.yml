@@ -19,9 +19,10 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
             build-essential autoconf automake libtool bison pkg-config
-      - name: Prepare OpenSSL for PHP configure
+
+      - name: Prepare OpenSSL (aarch64 static)
         run: |
-                    wget -O openssl-3.3.1.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz
+          wget -nv https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz
           tar -xzf openssl-3.3.1.tar.gz
           cd openssl-3.3.1
           cp /usr/share/autoconf/build-aux/config.sub .
@@ -33,9 +34,9 @@ jobs:
           make -j$(nproc)
           make install_sw
 
-      - name: Cross-compile curl
+      - name: Cross-compile curl (aarch64 static)
         run: |
-          wget https://curl.se/download/curl-8.8.0.tar.gz
+          wget -nv https://curl.se/download/curl-8.8.0.tar.gz
           tar -xzf curl-8.8.0.tar.gz
           cd curl-8.8.0
           export CC=aarch64-linux-gnu-gcc
@@ -44,7 +45,7 @@ jobs:
             --prefix=/tmp/curl-aarch64 \
             --disable-shared \
             --enable-static \
-            --with-ssl=${GITHUB_WORKSPACE}/openssl \
+            --with-ssl=/tmp/ossl \
             --disable-ldap \
             --disable-rtsp \
             --disable-dict \
@@ -55,14 +56,13 @@ jobs:
             --disable-pop3 \
             --disable-smtp \
             --disable-telnet \
-            --with-openssl ${GITHUB_WORKSPACE}/openssl \
             --disable-tftp
           make -j$(nproc)
           make install
 
       - name: Download PHP source
         run: |
-          wget https://www.php.net/distributions/php-8.3.9.tar.gz
+          wget -nv https://www.php.net/distributions/php-8.3.9.tar.gz
           tar -xzf php-8.3.9.tar.gz
           mv php-8.3.9 php-src
 
@@ -92,7 +92,7 @@ jobs:
             --enable-zip \
             --enable-opcache \
             --enable-cgi \
-            --with-openssl=${OPENSSL_DIR} \
+            --with-openssl=/tmp/ossl \
             --with-curl=/tmp/curl-aarch64 \
             --with-zlib \
             --with-sqlite3 \
@@ -117,7 +117,7 @@ jobs:
           cp php-src/sapi/cli/php Android-tools/usr/bin/
           cp php-src/sapi/fpm/php-fpm Android-tools/usr/bin/
           cp php-src/php.ini-development Android-tools/usr/lib/php.ini
-          cp -r php-src/sapi/fpm/php-fpm.conf Android-tools/usr/etc/
+          cp php-src/sapi/fpm/php-fpm.conf Android-tools/usr/etc/
 
       - name: Upload PHP backend
         uses: actions/upload-artifact@v4
