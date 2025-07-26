@@ -19,21 +19,20 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
             build-essential autoconf automake libtool bison pkg-config
-      - name: Prepare OpenSSL (aarch64 static)
+       - name: Prepare OpenSSL (aarch64 static)
         run: |
-          wget -nv https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz
+          wget -nv https://www.openssl.org/source/openssl-3.3.1.tar.gz
           tar -xzf openssl-3.3.1.tar.gz
           cd openssl-3.3.1
           cp /usr/share/autoconf/build-aux/config.sub .
           export CC=aarch64-linux-gnu-gcc
           ./Configure linux-aarch64 \
-           --prefix=/tmp/ossl \
-           --libdir=lib \
-           no-shared \
-          -fPIC
-         make -j$(nproc)
-         make install_sw
-
+            --prefix=/tmp/ossl \
+            --libdir=lib \
+            no-shared \
+            -fPIC
+          make -j$(nproc)
+          make install_sw
 
       - name: Cross-compile curl (aarch64 static)
         run: |
