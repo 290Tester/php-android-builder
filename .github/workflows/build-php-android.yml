@@ -19,7 +19,7 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
             build-essential autoconf automake libtool bison pkg-config
-       - name: Prepare OpenSSL for PHP configure
+      - name: Prepare OpenSSL for PHP configure
         run: |
                     wget -O openssl-3.3.1.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz
           tar -xzf openssl-3.3.1.tar.gz
