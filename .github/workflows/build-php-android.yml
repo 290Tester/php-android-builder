@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [aarch64-linux, x86_64-linux]
+        arch: [aarch64-linux]
 
     steps:
       - name: Checkout
@@ -29,6 +29,7 @@ jobs:
       - name: Cross-compile PHP
         run: |
           cd PHP-for-Android-compiler
+          chmod +rwx *
           ./compileandroid.sh ${{ matrix.arch }}
 
       - name: Upload binary
