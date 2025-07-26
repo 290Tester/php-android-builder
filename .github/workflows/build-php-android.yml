@@ -21,7 +21,7 @@ jobs:
             build-essential autoconf automake libtool bison pkg-config
        - name: Prepare OpenSSL for PHP configure
         run: |
-          wget https://mirrors.tuna.tsinghua.edu.cn/openssl/source/openssl-3.3.1.tar.gz
+                    wget -O openssl-3.3.1.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz
           tar -xzf openssl-3.3.1.tar.gz
           cd openssl-3.3.1
           cp /usr/share/autoconf/build-aux/config.sub .
