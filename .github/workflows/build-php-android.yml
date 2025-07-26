@@ -37,7 +37,6 @@ jobs:
             no-dso \
             no-module \
             -fPIC \
-            --cross-compile-prefix=aarch64-linux-gnu-
           make -j$(nproc)
           make install_sw
 
