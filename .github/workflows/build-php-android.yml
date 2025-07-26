@@ -32,8 +32,8 @@ jobs:
            --libdir=lib \
            no-shared \
           -fPIC
-        make -j$(nproc)
-        make install_sw
+         make -j$(nproc)
+         make install_sw
 
 
       - name: Cross-compile curl (aarch64 static)
