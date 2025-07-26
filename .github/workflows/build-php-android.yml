@@ -9,26 +9,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 下载 musl 工具链
+      - name: 设置工具链
         run: |
+          # 安装基础编译工具
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential wget xz-utils
+          
+          # 从官方源下载 musl 工具链
           mkdir -p /opt/musl
-          wget -nv https://musl.cc/aarch64-linux-musl-cross.tgz -O /tmp/musl.tgz
+          wget --tries=3 --timeout=30 https://musl.cc/aarch64-linux-musl-cross.tgz -O /tmp/musl.tgz || \
+          wget --tries=3 --timeout=30 https://more.musl.cc/12/aarch64-linux-musl-cross.tgz -O /tmp/musl.tgz
           tar -xzf /tmp/musl.tgz -C /opt/musl --strip-components=1
           echo "/opt/musl/bin" >> $GITHUB_PATH
 
-      - name: 下载静态依赖库
+      - name: 下载依赖库
         run: |
           mkdir -p /tmp/static-libs
-          # 使用 Alpine Linux 的预编译包 (musl 原生兼容)
-          wget -nv https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/aarch64/openssl-static-3.1.4-r0.aarch64.apk -O /tmp/openssl.apk
-          tar -xzf /tmp/openssl.apk -C /tmp/static-libs --wildcards '*.a' '*.h'
           
-          wget -nv https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/aarch64/curl-static-8.4.0-r0.aarch64.apk -O /tmp/curl.apk
-          tar -xzf /tmp/curl.apk -C /tmp/static-libs --wildcards '*.a' '*.h'
+          # 从 Alpine 官方仓库下载静态库
+          wget --tries=3 --timeout=30 \
+            https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/aarch64/{openssl-static-3.1.4-r0.aarch64.apk,curl-static-8.4.0-r0.aarch64.apk} \
+            -P /tmp/
+          
+          # 提取静态库
+          for pkg in /tmp/*.apk; do
+            tar -xzf "$pkg" -C /tmp/static-libs --wildcards '*.a' '*.h' --transform 's/usr\///'
+          done
 
       - name: 构建 PHP
         run: |
-          wget -nv https://www.php.net/distributions/php-8.3.9.tar.gz
+          wget --tries=3 --timeout=30 https://www.php.net/distributions/php-8.3.9.tar.gz
           tar -xzf php-8.3.9.tar.gz
           cd php-8.3.9
           
@@ -37,8 +47,8 @@ jobs:
           export AR="aarch64-linux-musl-ar"
           export RANLIB="aarch64-linux-musl-ranlib"
           export STRIP="aarch64-linux-musl-strip"
-          export CFLAGS="-static -Os -I/tmp/static-libs/usr/include"
-          export LDFLAGS="-static -L/tmp/static-libs/usr/lib"
+          export CFLAGS="-static -Os -I/tmp/static-libs/include"
+          export LDFLAGS="-static -L/tmp/static-libs/lib"
           
           ./configure \
             --host=aarch64-linux-musl \
