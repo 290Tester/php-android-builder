@@ -1,4 +1,4 @@
-name: Build PHP Web Backend for Android (aarch64)
+name: Build PHP Web Backend (aarch64 static)
 
 on:
   push:
@@ -12,58 +12,52 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install cross-compile dependencies
+
+      - name: Install cross-compile tools
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu \
-            libc6-dev-arm64-cross \
-            build-essential \
-            autoconf automake libtool \
-            bison re2c pkg-config \
-            libxml2-dev libssl-dev libcurl4-openssl-dev libzip-dev libonig-dev libsqlite3-dev zlib1g-dev
-      - name: Cross-compile OpenSSL (aarch64 static)
-        run: |
-          wget https://www.openssl.org/source/openssl-3.3.1.tar.gz
-          tar -xzf openssl-3.3.1.tar.gz
-          cd openssl-3.3.1
-          export CC=aarch64-linux-gnu-gcc
-          ./Configure linux-aarch64 \
-            --prefix=/tmp/openssl-aarch64 \
-            no-shared \
-            no-tests \
-            no-threads \
-            no-async \
-            -fPIC
-          make -j$(nproc)
-          make install
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
+            build-essential autoconf automake libtool bison pkg-config
 
-      - name: Cross-compile curl (aarch64 static)
+      - name: Set OpenSSL env
+        run: |
+          echo "OPENSSL_DIR=${GITHUB_WORKSPACE}/.github/workflows" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=${GITHUB_WORKSPACE}/.github/workflows/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+      - name: Cross-compile curl
         run: |
           wget https://curl.se/download/curl-8.8.0.tar.gz
           tar -xzf curl-8.8.0.tar.gz
           cd curl-8.8.0
           export CC=aarch64-linux-gnu-gcc
-          export AR=aarch64-linux-gnu-ar
-          export RANLIB=aarch64-linux-gnu-ranlib
           ./configure \
             --host=aarch64-linux-gnu \
             --prefix=/tmp/curl-aarch64 \
             --disable-shared \
             --enable-static \
-            --with-ssl \
+            --with-ssl=${OPENSSL_DIR} \
             --disable-ldap \
-            --disable-ldaps
+            --disable-rtsp \
+            --disable-dict \
+            --disable-file \
+            --disable-ftp \
+            --disable-gopher \
+            --disable-imap \
+            --disable-pop3 \
+            --disable-smtp \
+            --disable-telnet \
+            --disable-tftp
           make -j$(nproc)
           make install
+
       - name: Download PHP source
         run: |
           wget https://www.php.net/distributions/php-8.3.9.tar.gz
           tar -xzf php-8.3.9.tar.gz
           mv php-8.3.9 php-src
 
-      - name: Configure PHP with Web backend
+      - name: Configure PHP (aarch64 static)
         run: |
           cd php-src
           export CC=aarch64-linux-gnu-gcc
@@ -75,7 +69,7 @@ jobs:
           export LDFLAGS="-static -Wl,--gc-sections"
           ./configure \
             --host=aarch64-linux-gnu \
-            --prefix=/data/local/tmp/Android-tools/usr/ \
+            --prefix=/usr \
             --disable-shared \
             --enable-static \
             --enable-cli \
@@ -89,13 +83,12 @@ jobs:
             --enable-zip \
             --enable-opcache \
             --enable-cgi \
-            --with-openssl \
-            --with-curl \
+            --with-openssl=${OPENSSL_DIR} \
+            --with-curl=/tmp/curl-aarch64 \
             --with-zlib \
             --with-sqlite3 \
             --with-pdo-sqlite \
             --without-pear \
-            --with-curl=/tmp/curl-aarch64 \
             ac_cv_func_dlopen=no \
             ac_cv_func_dlsym=no
 
@@ -117,7 +110,7 @@ jobs:
           cp php-src/php.ini-development Android-tools/usr/lib/php.ini
           cp -r php-src/sapi/fpm/php-fpm.conf Android-tools/usr/etc/
 
-      - name: Upload PHP Web backend
+      - name: Upload PHP backend
         uses: actions/upload-artifact@v4
         with:
           name: php-web-aarch64-android
