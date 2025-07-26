@@ -13,79 +13,62 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up ARM64 environment
+      - name: Install basic tools
         run: |
-          sudo dpkg --add-architecture arm64
           sudo apt-get update -qq
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
             libc6-dev-arm64-cross \
-            libssl-dev:arm64 libssl-static:arm64 \
-            libcurl4-openssl-dev:arm64 libcurl4-openssl-static:arm64 \
-            zlib1g-dev:arm64 zlib1g-static:arm64 \
-            libsqlite3-dev:arm64 libsqlite3-static:arm64 \
-            build-essential autoconf automake libtool bison re2c pkg-config
+            build-essential autoconf automake libtool \
+            bison re2c pkg-config
 
-      - name: Download PHP source
+      - name: Download prebuilt static libraries
+        run: |
+          mkdir -p /tmp/static-libs
+          # 下载预编译的静态OpenSSL
+          wget -nv https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1-static-linux-arm64.tar.gz -O /tmp/openssl.tar.gz
+          tar -xzf /tmp/openssl.tar.gz -C /tmp/static-libs
+          
+          # 下载预编译的静态cURL
+          wget -nv https://curl.se/download/curl-8.8.0-static-arm64.tar.gz -O /tmp/curl.tar.gz
+          tar -xzf /tmp/curl.tar.gz -C /tmp/static-libs
+
+      - name: Download and build PHP
         run: |
           wget -nv https://www.php.net/distributions/php-8.3.9.tar.gz
           tar -xzf php-8.3.9.tar.gz
-          mv php-8.3.9 php-src
-
-      - name: Configure PHP
-        run: |
-          cd php-src
+          cd php-8.3.9
+          
           export CC="aarch64-linux-gnu-gcc"
           export CXX="aarch64-linux-gnu-g++"
           export AR="aarch64-linux-gnu-ar"
           export RANLIB="aarch64-linux-gnu-ranlib"
           export STRIP="aarch64-linux-gnu-strip"
-          export CFLAGS="-static -Os -ffunction-sections -fdata-sections"
+          export CFLAGS="-static -Os"
           export LDFLAGS="-static -Wl,--gc-sections"
-          export PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig"
           
           ./configure \
             --host=aarch64-linux-gnu \
-            --prefix=/data/local/tmp/Android-tools/usr/ \
+            --prefix=/data/local/tmp/php \
             --disable-shared \
             --enable-static \
             --enable-cli \
-            --enable-fpm \
-            --with-openssl \
-            --with-curl \
-            --with-zlib \
-            --enable-mbstring \
-            --enable-json \
-            --enable-xml \
-            --enable-simplexml \
-            --enable-dom \
-            --enable-phar \
-            --enable-zip \
-            --enable-opcache \
-            --enable-cgi \
-            --with-sqlite3 \
-            --with-pdo-sqlite \
+            --with-openssl=/tmp/static-libs \
+            --with-curl=/tmp/static-libs \
             --without-pear \
             ac_cv_func_dlopen=no \
             ac_cv_func_dlsym=no
-
-      - name: Build PHP
-        run: |
-          cd php-src
+          
           make -j$(nproc)
           aarch64-linux-gnu-strip sapi/cli/php
-          aarch64-linux-gnu-strip sapi/fpm/php-fpm
 
-      - name: Package binaries
+      - name: Package binary
         run: |
-          mkdir -p php-bin
-          cp php-src/sapi/cli/php php-bin/
-          cp php-src/sapi/fpm/php-fpm php-bin/
-          cp php-src/php.ini-development php-bin/php.ini
-          cp php-src/sapi/fpm/php-fpm.conf php-bin/
-          tar -czvf php-aarch64-static.tar.gz php-bin/
+          mkdir -p php-dist
+          cp php-8.3.9/sapi/cli/php php-dist/
+          tar -czvf php-aarch64-static.tar.gz php-dist/
 
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: php-aarch64-static
