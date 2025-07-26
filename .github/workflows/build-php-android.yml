@@ -1,4 +1,4 @@
-name: 构建PHP后端(aarch64静态版)
+name: Build PHP for Android (aarch64 static)
 
 on:
   push:
@@ -10,73 +10,82 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 检出代码
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 安装交叉编译工具
+      - name: Install cross-compilation tools
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
-            build-essential autoconf automake libtool bison pkg-config
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            libc6-dev-arm64-cross build-essential \
+            autoconf automake libtool bison re2c \
+            pkg-config libsqlite3-dev
 
-      - name: 准备OpenSSL(aarch64静态)
+      - name: Build OpenSSL (static)
         run: |
           wget -nv https://www.openssl.org/source/openssl-3.3.1.tar.gz
           tar -xzf openssl-3.3.1.tar.gz
           cd openssl-3.3.1
-          cp /usr/share/autoconf/build-aux/config.sub .
-          export CC=aarch64-linux-gnu-gcc
+          export CC="aarch64-linux-gnu-gcc"
+          export AR="aarch64-linux-gnu-ar"
+          export RANLIB="aarch64-linux-gnu-ranlib"
           ./Configure linux-aarch64 \
             --prefix=/tmp/ossl \
             --libdir=lib \
             no-shared \
-            -fPIC
+            no-dso \
+            no-module \
+            -fPIC \
+            --cross-compile-prefix=aarch64-linux-gnu-
           make -j$(nproc)
           make install_sw
 
-      - name: 交叉编译curl(aarch64静态)
+      - name: Build cURL (static)
         run: |
           wget -nv https://curl.se/download/curl-8.8.0.tar.gz
           tar -xzf curl-8.8.0.tar.gz
           cd curl-8.8.0
-          export CC=aarch64-linux-gnu-gcc
+          export CC="aarch64-linux-gnu-gcc"
+          export AR="aarch64-linux-gnu-ar"
+          export RANLIB="aarch64-linux-gnu-ranlib"
+          export CFLAGS="-static -I/tmp/ossl/include"
+          export LDFLAGS="-static -L/tmp/ossl/lib -lssl -lcrypto -ldl -lpthread"
+          export PKG_CONFIG_PATH="/tmp/ossl/lib/pkgconfig"
+          
           ./configure \
             --host=aarch64-linux-gnu \
-            --prefix=/tmp/curl-aarch64 \
+            --prefix=/tmp/curl-static \
             --disable-shared \
             --enable-static \
-            --with-ssl=/tmp/ossl \
+            --with-openssl=/tmp/ossl \
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+            --without-librtmp \
             --disable-ldap \
             --disable-rtsp \
-            --disable-dict \
-            --disable-file \
-            --disable-ftp \
-            --disable-gopher \
-            --disable-imap \
-            --disable-pop3 \
-            --disable-smtp \
-            --disable-telnet \
-            --disable-tftp
+            --without-zstd \
+            --without-brotli
           make -j$(nproc)
           make install
 
-      - name: 下载PHP源码
+      - name: Download PHP source
         run: |
           wget -nv https://www.php.net/distributions/php-8.3.9.tar.gz
           tar -xzf php-8.3.9.tar.gz
           mv php-8.3.9 php-src
 
-      - name: 配置PHP(aarch64静态)
+      - name: Configure PHP
         run: |
           cd php-src
-          export CC=aarch64-linux-gnu-gcc
-          export CXX=aarch64-linux-gnu-g++
-          export AR=aarch64-linux-gnu-ar
-          export RANLIB=aarch64-linux-gnu-ranlib
-          export STRIP=aarch64-linux-gnu-strip
-          export CFLAGS="-static -Os -ffunction-sections -fdata-sections"
-          export LDFLAGS="-static -Wl,--gc-sections"
+          export CC="aarch64-linux-gnu-gcc"
+          export CXX="aarch64-linux-gnu-g++"
+          export AR="aarch64-linux-gnu-ar"
+          export RANLIB="aarch64-linux-gnu-ranlib"
+          export STRIP="aarch64-linux-gnu-strip"
+          export CFLAGS="-static -Os -ffunction-sections -fdata-sections -I/tmp/ossl/include"
+          export LDFLAGS="-static -Wl,--gc-sections -L/tmp/ossl/lib -lssl -lcrypto -ldl -lpthread"
+          export PKG_CONFIG_PATH="/tmp/ossl/lib/pkgconfig"
+          
           ./configure \
             --host=aarch64-linux-gnu \
             --prefix=/data/local/tmp/Android-tools/usr/ \
@@ -84,6 +93,9 @@ jobs:
             --enable-static \
             --enable-cli \
             --enable-fpm \
+            --with-openssl=/tmp/ossl \
+            --with-curl=/tmp/curl-static \
+            --with-zlib \
             --enable-mbstring \
             --enable-json \
             --enable-xml \
@@ -93,36 +105,30 @@ jobs:
             --enable-zip \
             --enable-opcache \
             --enable-cgi \
-            --with-openssl=/tmp/ossl \
-            --with-curl=/tmp/curl-aarch64 \
-            --with-zlib \
             --with-sqlite3 \
             --with-pdo-sqlite \
             --without-pear \
             ac_cv_func_dlopen=no \
             ac_cv_func_dlsym=no
 
-      - name: 构建PHP
+      - name: Build PHP
         run: |
           cd php-src
           make -j$(nproc)
+          aarch64-linux-gnu-strip sapi/cli/php
+          aarch64-linux-gnu-strip sapi/fpm/php-fpm
 
-      - name: 精简二进制文件
+      - name: Package binaries
         run: |
-          aarch64-linux-gnu-strip php-src/sapi/cli/php
-          aarch64-linux-gnu-strip php-src/sapi/fpm/php-fpm
+          mkdir -p php-bin
+          cp php-src/sapi/cli/php php-bin/
+          cp php-src/sapi/fpm/php-fpm php-bin/
+          cp php-src/php.ini-development php-bin/php.ini
+          cp php-src/sapi/fpm/php-fpm.conf php-bin/
+          tar -czvf php-aarch64-static.tar.gz php-bin/
 
-      - name: 打包PHP二进制文件
-        run: |
-          mkdir -p php-static-bin
-          cp php-src/sapi/cli/php php-static-bin/
-          cp php-src/sapi/fpm/php-fpm php-static-bin/
-          cp php-src/php.ini-development php-static-bin/php.ini
-          cp php-src/sapi/fpm/php-fpm.conf php-static-bin/
-          tar -czvf php-aarch64-static.tar.gz php-static-bin/
-
-      - name: 上传构建结果
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: php-aarch64-static-bin
+          name: php-aarch64-static
           path: php-aarch64-static.tar.gz
