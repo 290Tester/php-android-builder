@@ -1,4 +1,4 @@
-name: Build PHP Web Backend (aarch64 static)
+name: 构建PHP后端(aarch64静态版)
 
 on:
   push:
@@ -10,16 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: Install cross-compile tools
+      - name: 安装交叉编译工具
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
             build-essential autoconf automake libtool bison pkg-config
-       - name: Prepare OpenSSL (aarch64 static)
+
+      - name: 准备OpenSSL(aarch64静态)
         run: |
           wget -nv https://www.openssl.org/source/openssl-3.3.1.tar.gz
           tar -xzf openssl-3.3.1.tar.gz
@@ -34,7 +35,7 @@ jobs:
           make -j$(nproc)
           make install_sw
 
-      - name: Cross-compile curl (aarch64 static)
+      - name: 交叉编译curl(aarch64静态)
         run: |
           wget -nv https://curl.se/download/curl-8.8.0.tar.gz
           tar -xzf curl-8.8.0.tar.gz
@@ -60,13 +61,13 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: Download PHP source
+      - name: 下载PHP源码
         run: |
           wget -nv https://www.php.net/distributions/php-8.3.9.tar.gz
           tar -xzf php-8.3.9.tar.gz
           mv php-8.3.9 php-src
 
-      - name: Configure PHP (aarch64 static)
+      - name: 配置PHP(aarch64静态)
         run: |
           cd php-src
           export CC=aarch64-linux-gnu-gcc
@@ -78,7 +79,7 @@ jobs:
           export LDFLAGS="-static -Wl,--gc-sections"
           ./configure \
             --host=aarch64-linux-gnu \
-            --prefix=/usr \
+            --prefix=/data/local/tmp/Android-tools/usr/ \
             --disable-shared \
             --enable-static \
             --enable-cli \
@@ -101,26 +102,27 @@ jobs:
             ac_cv_func_dlopen=no \
             ac_cv_func_dlsym=no
 
-      - name: Build PHP
+      - name: 构建PHP
         run: |
           cd php-src
           make -j$(nproc)
 
-      - name: Strip binaries
+      - name: 精简二进制文件
         run: |
           aarch64-linux-gnu-strip php-src/sapi/cli/php
           aarch64-linux-gnu-strip php-src/sapi/fpm/php-fpm
 
-      - name: Prepare install structure
+      - name: 打包PHP二进制文件
         run: |
-          mkdir -p Android-tools/usr/{bin,lib,etc}
-          cp php-src/sapi/cli/php Android-tools/usr/bin/
-          cp php-src/sapi/fpm/php-fpm Android-tools/usr/bin/
-          cp php-src/php.ini-development Android-tools/usr/lib/php.ini
-          cp php-src/sapi/fpm/php-fpm.conf Android-tools/usr/etc/
+          mkdir -p php-static-bin
+          cp php-src/sapi/cli/php php-static-bin/
+          cp php-src/sapi/fpm/php-fpm php-static-bin/
+          cp php-src/php.ini-development php-static-bin/php.ini
+          cp php-src/sapi/fpm/php-fpm.conf php-static-bin/
+          tar -czvf php-aarch64-static.tar.gz php-static-bin/
 
-      - name: Upload PHP backend
+      - name: 上传构建结果
         uses: actions/upload-artifact@v4
         with:
-          name: php-web-aarch64-android
-          path: Android-tools
+          name: php-aarch64-static-bin
+          path: php-aarch64-static.tar.gz
