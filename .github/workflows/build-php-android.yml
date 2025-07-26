@@ -13,59 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install cross-compilation tools
+      - name: Set up ARM64 environment
         run: |
+          sudo dpkg --add-architecture arm64
           sudo apt-get update -qq
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            libc6-dev-arm64-cross build-essential \
-            autoconf automake libtool bison re2c \
-            pkg-config libsqlite3-dev
-
-      - name: Build OpenSSL (static)
-        run: |
-          wget -nv https://www.openssl.org/source/openssl-3.3.1.tar.gz
-          tar -xzf openssl-3.3.1.tar.gz
-          cd openssl-3.3.1
-          export CC="aarch64-linux-gnu-gcc"
-          export AR="aarch64-linux-gnu-ar"
-          export RANLIB="aarch64-linux-gnu-ranlib"
-          ./Configure linux-aarch64 \
-            --prefix=/tmp/ossl \
-            --libdir=lib \
-            no-shared \
-            no-dso \
-            no-module \
-            -fPIC \
-          make -j$(nproc)
-          make install_sw
-
-      - name: Build cURL (static)
-        run: |
-          wget -nv https://curl.se/download/curl-8.8.0.tar.gz
-          tar -xzf curl-8.8.0.tar.gz
-          cd curl-8.8.0
-          export CC="aarch64-linux-gnu-gcc"
-          export AR="aarch64-linux-gnu-ar"
-          export RANLIB="aarch64-linux-gnu-ranlib"
-          export CFLAGS="-static -I/tmp/ossl/include"
-          export LDFLAGS="-static -L/tmp/ossl/lib -lssl -lcrypto -ldl -lpthread"
-          export PKG_CONFIG_PATH="/tmp/ossl/lib/pkgconfig"
-          
-          ./configure \
-            --host=aarch64-linux-gnu \
-            --prefix=/tmp/curl-static \
-            --disable-shared \
-            --enable-static \
-            --with-openssl=/tmp/ossl \
-            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
-            --without-librtmp \
-            --disable-ldap \
-            --disable-rtsp \
-            --without-zstd \
-            --without-brotli
-          make -j$(nproc)
-          make install
+            libc6-dev-arm64-cross \
+            libssl-dev:arm64 libssl-static:arm64 \
+            libcurl4-openssl-dev:arm64 libcurl4-openssl-static:arm64 \
+            zlib1g-dev:arm64 zlib1g-static:arm64 \
+            libsqlite3-dev:arm64 libsqlite3-static:arm64 \
+            build-essential autoconf automake libtool bison re2c pkg-config
 
       - name: Download PHP source
         run: |
@@ -81,9 +40,9 @@ jobs:
           export AR="aarch64-linux-gnu-ar"
           export RANLIB="aarch64-linux-gnu-ranlib"
           export STRIP="aarch64-linux-gnu-strip"
-          export CFLAGS="-static -Os -ffunction-sections -fdata-sections -I/tmp/ossl/include"
-          export LDFLAGS="-static -Wl,--gc-sections -L/tmp/ossl/lib -lssl -lcrypto -ldl -lpthread"
-          export PKG_CONFIG_PATH="/tmp/ossl/lib/pkgconfig"
+          export CFLAGS="-static -Os -ffunction-sections -fdata-sections"
+          export LDFLAGS="-static -Wl,--gc-sections"
+          export PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig"
           
           ./configure \
             --host=aarch64-linux-gnu \
@@ -92,8 +51,8 @@ jobs:
             --enable-static \
             --enable-cli \
             --enable-fpm \
-            --with-openssl=/tmp/ossl \
-            --with-curl=/tmp/curl-static \
+            --with-openssl \
+            --with-curl \
             --with-zlib \
             --enable-mbstring \
             --enable-json \
