@@ -22,8 +22,8 @@ jobs:
 
       - name: Set OpenSSL env
         run: |
-          echo "OPENSSL_DIR=${GITHUB_WORKSPACE}/.github/workflows" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=${GITHUB_WORKSPACE}/.github/workflows/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "OPENSSL_DIR=${GITHUB_WORKSPACE}/openssl" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=${GITHUB_WORKSPACE}/openssl/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
       - name: Cross-compile curl
         run: |
