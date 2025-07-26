@@ -16,11 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build deps
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            make autoconf automake libtool m4 wget bison g++ git ca-certificates
+       - name: Install missing aarch64 libc & patch script
+      run: |
+        sudo apt-get install -y libc6-dev-arm64-cross gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        cd PHP-for-Android-compiler
+        sed -i 's|./configure -O3|CFLAGS="-O3" ./configure|g' compileandroid.sh
+        chmod +x compileandroid.sh
+
 
       - name: Clone compiler
         run: |
