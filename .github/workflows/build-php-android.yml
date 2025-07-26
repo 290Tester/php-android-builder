@@ -28,11 +28,13 @@ jobs:
           cp /usr/share/autoconf/build-aux/config.sub .
           export CC=aarch64-linux-gnu-gcc
           ./Configure linux-aarch64 \
-            --prefix=/tmp/ossl \
-            no-shared \
-            -fPIC
-          make -j$(nproc)
-          make install_sw
+           --prefix=/tmp/ossl \
+           --libdir=lib \
+           no-shared \
+          -fPIC
+        make -j$(nproc)
+        make install_sw
+
 
       - name: Cross-compile curl (aarch64 static)
         run: |
