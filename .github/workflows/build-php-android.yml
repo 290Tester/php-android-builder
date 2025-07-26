@@ -23,6 +23,22 @@ jobs:
             autoconf automake libtool \
             bison re2c pkg-config \
             libxml2-dev libssl-dev libcurl4-openssl-dev libzip-dev libonig-dev libsqlite3-dev zlib1g-dev
+      - name: Cross-compile OpenSSL (aarch64 static)
+        run: |
+          wget https://www.openssl.org/source/openssl-3.3.1.tar.gz
+          tar -xzf openssl-3.3.1.tar.gz
+          cd openssl-3.3.1
+          export CC=aarch64-linux-gnu-gcc
+          ./Configure linux-aarch64 \
+            --prefix=/tmp/openssl-aarch64 \
+            no-shared \
+            no-tests \
+            no-threads \
+            no-async \
+            -fPIC
+          make -j$(nproc)
+          make install
+
       - name: Cross-compile curl (aarch64 static)
         run: |
           wget https://curl.se/download/curl-8.8.0.tar.gz
