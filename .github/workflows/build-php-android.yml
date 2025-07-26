@@ -13,15 +13,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install cross-compile dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
-            make autoconf automake libtool m4 bison wget git ca-certificates \
-            libxml2-dev:arm64 libssl-dev:arm64 libcurl4-openssl-dev:arm64 \
-            libzip-dev:arm64 libonig-dev:arm64 libsqlite3-dev:arm64
-
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            libc6-dev-arm64-cross \
+            build-essential \
+            autoconf automake libtool \
+            bison re2c pkg-config \
+            libxml2-dev libssl-dev libcurl4-openssl-dev libzip-dev libonig-dev libsqlite3-dev zlib1g-dev
       - name: Download PHP source
         run: |
           wget https://www.php.net/distributions/php-8.3.9.tar.gz
