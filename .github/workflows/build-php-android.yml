@@ -17,8 +17,8 @@ jobs:
           
           # 从官方源下载 musl 工具链
           mkdir -p /opt/musl
-          wget --tries=3 --timeout=30 https://musl.cc/aarch64-linux-musl-cross.tgz -O /tmp/musl.tgz || \
-          wget --tries=3 --timeout=30 https://more.musl.cc/12/aarch64-linux-musl-cross.tgz -O /tmp/musl.tgz
+          wget --tries=3 --timeout=30 https://more.musl.cc/x86_64-linux-musl/aarch64-linux-musl-cross.tgz -O /tmp/musl.tgz || \
+          wget --tries=3 --timeout=30 https://more.musl.cc/x86_64-linux-musl/aarch64-linux-musl-cross.tgz -O /tmp/musl.tgz
           tar -xzf /tmp/musl.tgz -C /opt/musl --strip-components=1
           echo "/opt/musl/bin" >> $GITHUB_PATH
 
