@@ -1,4 +1,4 @@
-name: Build PHP for Android (aarch64)
+name: Build PHP Web Backend for Android (aarch64)
 
 on:
   push:
@@ -13,22 +13,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install cross-compile dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu \
-            libc6-dev-arm64-cross \
-            make \
-            autoconf \
-            automake \
-            libtool \
-            m4 \
-            bison \
-            wget \
-            git \
-            ca-certificates
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
+            make autoconf automake libtool m4 bison wget git ca-certificates \
+            libxml2-dev:arm64 libssl-dev:arm64 libcurl4-openssl-dev:arm64 \
+            libzip-dev:arm64 libonig-dev:arm64 libsqlite3-dev:arm64
 
       - name: Download PHP source
         run: |
@@ -36,7 +28,7 @@ jobs:
           tar -xzf php-8.3.9.tar.gz
           mv php-8.3.9 php-src
 
-      - name: Configure PHP for static aarch64 build
+      - name: Configure PHP with Web backend
         run: |
           cd php-src
           export CC=aarch64-linux-gnu-gcc
@@ -44,37 +36,53 @@ jobs:
           export AR=aarch64-linux-gnu-ar
           export RANLIB=aarch64-linux-gnu-ranlib
           export STRIP=aarch64-linux-gnu-strip
-          export CFLAGS="-static -Os"
-          export LDFLAGS="-static"
+          export CFLAGS="-static -Os -ffunction-sections -fdata-sections"
+          export LDFLAGS="-static -Wl,--gc-sections"
           ./configure \
             --host=aarch64-linux-gnu \
-            --target=aarch64-linux-gnu \
             --prefix=/data/local/tmp/Android-tools/usr/ \
-            --disable-all \
-            --enable-cli \
-            --without-pear \
-            --disable-cgi \
-            --disable-phpdbg \
-            --disable-fpm \
             --disable-shared \
-            --enable-static
+            --enable-static \
+            --enable-cli \
+            --enable-fpm \
+            --enable-mbstring \
+            --enable-json \
+            --enable-xml \
+            --enable-simplexml \
+            --enable-dom \
+            --enable-phar \
+            --enable-zip \
+            --enable-opcache \
+            --enable-cgi \
+            --with-openssl \
+            --with-curl \
+            --with-zlib \
+            --with-sqlite3 \
+            --with-pdo-sqlite \
+            --without-pear \
+            ac_cv_func_dlopen=no \
+            ac_cv_func_dlsym=no
 
       - name: Build PHP
         run: |
           cd php-src
           make -j$(nproc)
 
-      - name: Strip binary
+      - name: Strip binaries
         run: |
           aarch64-linux-gnu-strip php-src/sapi/cli/php
+          aarch64-linux-gnu-strip php-src/sapi/fpm/php-fpm
 
       - name: Prepare install structure
         run: |
-          mkdir -p Android-tools/usr/bin
+          mkdir -p Android-tools/usr/{bin,lib,etc}
           cp php-src/sapi/cli/php Android-tools/usr/bin/
+          cp php-src/sapi/fpm/php-fpm Android-tools/usr/bin/
+          cp php-src/php.ini-development Android-tools/usr/lib/php.ini
+          cp -r php-src/sapi/fpm/php-fpm.conf Android-tools/usr/etc/
 
-      - name: Upload PHP binary
+      - name: Upload PHP Web backend
         uses: actions/upload-artifact@v4
         with:
-          name: php-aarch64-android
-          path: Android-tools/usr/bin/php
+          name: php-web-aarch64-android
+          path: Android-tools
