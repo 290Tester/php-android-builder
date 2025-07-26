@@ -12,7 +12,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Install cross-compile dependencies
         run: |
           sudo apt-get update -qq
@@ -24,6 +23,24 @@ jobs:
             autoconf automake libtool \
             bison re2c pkg-config \
             libxml2-dev libssl-dev libcurl4-openssl-dev libzip-dev libonig-dev libsqlite3-dev zlib1g-dev
+      - name: Cross-compile curl (aarch64 static)
+        run: |
+          wget https://curl.se/download/curl-8.8.0.tar.gz
+          tar -xzf curl-8.8.0.tar.gz
+          cd curl-8.8.0
+          export CC=aarch64-linux-gnu-gcc
+          export AR=aarch64-linux-gnu-ar
+          export RANLIB=aarch64-linux-gnu-ranlib
+          ./configure \
+            --host=aarch64-linux-gnu \
+            --prefix=/tmp/curl-aarch64 \
+            --disable-shared \
+            --enable-static \
+            --with-ssl \
+            --disable-ldap \
+            --disable-ldaps
+          make -j$(nproc)
+          make install
       - name: Download PHP source
         run: |
           wget https://www.php.net/distributions/php-8.3.9.tar.gz
@@ -62,6 +79,7 @@ jobs:
             --with-sqlite3 \
             --with-pdo-sqlite \
             --without-pear \
+            --with-curl=/tmp/curl-aarch64 \
             ac_cv_func_dlopen=no \
             ac_cv_func_dlsym=no
 
